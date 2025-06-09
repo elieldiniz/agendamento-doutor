@@ -1,72 +1,43 @@
 "use server";
 
+import { addAppointmentSchema } from "./shema";
 import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import { db } from "@/db";
 import { appointmentsTable } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { actionClient } from "@/lib/next-safe-action";
+import { protectedWithClinicActionClient } from "@/lib/next-safe-action";
 
 import { getAvailableTimes } from "../get-available-times";
-import { addAppointmentSchema } from "./shema";
 
-export const addAppointment = actionClient
-  .inputSchema(addAppointmentSchema)
-  .action(async ({ parsedInput: input }) => {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
 
-    if (!session?.user) {
-      throw new Error("Não autorizado.");
-    }
-
-    if (!session.user.clinic?.id) {
-      throw new Error("Clínica não encontrada.");
-    }
-
-    const formattedDate = dayjs(input.date).format("YYYY-MM-DD");
-
+export const addAppointment = protectedWithClinicActionClient
+  .schema(addAppointmentSchema)
+  .action(async ({ parsedInput, ctx }) => {
     const availableTimes = await getAvailableTimes({
-      doctorId: input.doctorId,
-      date: formattedDate,
+      doctorId: parsedInput.doctorId,
+      date: dayjs(parsedInput.date).format("YYYY-MM-DD"),
     });
-
     if (!availableTimes?.data) {
-      throw new Error("Nenhum horário disponível para a data selecionada.");
+      throw new Error("No available times");
     }
-
-    const isTimeAvailable = availableTimes.data.some(
-      (time) => time.value === input.time && time.available
+    const isTimeAvailable = availableTimes.data?.some(
+      (time) => time.value === parsedInput.time && time.available,
     );
-
     if (!isTimeAvailable) {
-      throw new Error("O horário selecionado não está disponível.");
+      throw new Error("Time not available");
     }
-
-    const dateObj = dayjs(input.date);
-    if (!dateObj.isValid()) {
-      throw new Error("Data inválida.");
-    }
-
-    const [hour, minute] = input.time.split(":").map(Number);
-
-    const appointmentDateTime = dateObj
-      .set("hour", hour)
-      .set("minute", minute)
-      .set("second", 0)
-      .set("millisecond", 0)
+    const appointmentDateTime = dayjs(parsedInput.date)
+      .set("hour", parseInt(parsedInput.time.split(":")[0]))
+      .set("minute", parseInt(parsedInput.time.split(":")[1]))
       .toDate();
 
-    const { date, ...rest } = input;
-
     await db.insert(appointmentsTable).values({
-      ...rest,
-      clinicId: session.user.clinic.id,
+      ...parsedInput,
+      clinicId: ctx.user.clinic.id,
       date: appointmentDateTime,
     });
 
     revalidatePath("/appointments");
+    revalidatePath("/dashboard");
   });

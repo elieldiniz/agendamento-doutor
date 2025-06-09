@@ -1,46 +1,34 @@
-// src/actions/get-available-times.ts
 "use server";
 
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { appointmentsTable, doctorsTable } from "@/db/schema";
 import { generateTimeSlots } from "@/helpers/time";
-import { auth } from "@/lib/auth";
-import { actionClient } from "@/lib/next-safe-action";
+import { protectedWithClinicActionClient } from "@/lib/next-safe-action";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const getAvailableTimesSchema = z.object({
-  doctorId: z.string(),
-  date: z.string(), // validação extra pode ser feita no código
-});
-
-export const getAvailableTimes = actionClient
-  .inputSchema(getAvailableTimesSchema)
-  .action(async ({ parsedInput: input }) => {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    if (!session) {
-      throw new Error("Unauthorized");
-    }
-    if (!session.user.clinic) {
-      throw new Error("Clínica não encontrada");
-    }
+export const getAvailableTimes = protectedWithClinicActionClient
+  .schema(
+    z.object({
+      doctorId: z.string(),
+      date: z.string().date(), // YYYY-MM-DD,
+    }),
+  )
+  .action(async ({ parsedInput }) => {
     const doctor = await db.query.doctorsTable.findFirst({
-      where: eq(doctorsTable.id, input.doctorId),
+      where: eq(doctorsTable.id, parsedInput.doctorId),
     });
     if (!doctor) {
       throw new Error("Médico não encontrado");
     }
-    const selectedDayOfWeek = dayjs(input.date).day();
+    const selectedDayOfWeek = dayjs(parsedInput.date).day();
     const doctorIsAvailable =
       selectedDayOfWeek >= doctor.availableFromWeekDay &&
       selectedDayOfWeek <= doctor.availableToWeekDay;
@@ -48,11 +36,11 @@ export const getAvailableTimes = actionClient
       return [];
     }
     const appointments = await db.query.appointmentsTable.findMany({
-      where: eq(appointmentsTable.doctorId, input.doctorId),
+      where: eq(appointmentsTable.doctorId, parsedInput.doctorId),
     });
     const appointmentsOnSelectedDate = appointments
       .filter((appointment) => {
-        return dayjs(appointment.date).isSame(input.date, "day");
+        return dayjs(appointment.date).isSame(parsedInput.date, "day");
       })
       .map((appointment) => dayjs(appointment.date).format("HH:mm:ss"));
     const timeSlots = generateTimeSlots();

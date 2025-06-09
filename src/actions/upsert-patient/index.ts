@@ -1,42 +1,28 @@
 "use server";
 
+
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import { db } from "@/db";
 import { patientsTable } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { actionClient } from "@/lib/next-safe-action";
-
+import { protectedWithClinicActionClient } from "@/lib/next-safe-action";
 import { upsertPatientSchema } from "./shema";
 
-export const upsertPatient = actionClient
-  .inputSchema(upsertPatientSchema)
-  .action(async ({ parsedInput: input }) => {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user) {
-      throw new Error("Unauthorized");
-    }
-    if (!session?.user.clinic?.id) {
-      throw new Error("Clinic not found");
-    }
-
+export const upsertPatient = protectedWithClinicActionClient
+  .schema(upsertPatientSchema)
+  .action(async ({ parsedInput, ctx }) => {
     await db
       .insert(patientsTable)
       .values({
-        ...input,
-        id: input.id,
-        clinicId: session.user.clinic.id,
+        ...parsedInput,
+        id: parsedInput.id,
+        clinicId: ctx.user.clinic.id,
       })
       .onConflictDoUpdate({
         target: [patientsTable.id],
         set: {
-          ...input,
+          ...parsedInput,
         },
       });
-
     revalidatePath("/patients");
   });
