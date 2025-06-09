@@ -1,3 +1,4 @@
+// src/actions/upsert-doctor.ts
 "use server";
 
 import dayjs from "dayjs";
@@ -14,9 +15,9 @@ import { upsertDoctorSchema } from "./schema";
 
 dayjs.extend(utc);
 
-export const upsertDoctor = actionClient(
-  upsertDoctorSchema,
-  async (input) => {
+export const upsertDoctor = actionClient
+  .inputSchema(upsertDoctorSchema)
+  .action(async ({ parsedInput: input }) => {
     const availableFromTime = input.availableFromTime;
     const availableToTime = input.availableToTime;
 
@@ -63,5 +64,4 @@ export const upsertDoctor = actionClient(
       });
 
     revalidatePath("/doctors");
-  }
-);
+  });

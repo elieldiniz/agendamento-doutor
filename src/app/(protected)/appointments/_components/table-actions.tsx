@@ -1,7 +1,7 @@
 "use client";
 
 import { MoreVerticalIcon, TrashIcon } from "lucide-react";
-import { useAction } from "next-safe-action/hook";
+import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 
 import { deleteAppointment } from "@/actions/delete-appointment";

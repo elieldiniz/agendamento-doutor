@@ -1,3 +1,4 @@
+// src/actions/get-available-times.ts
 "use server";
 
 import dayjs from "dayjs";
@@ -16,12 +17,14 @@ import { actionClient } from "@/lib/next-safe-action";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-export const getAvailableTimes = actionClient(
-  z.object({
-    doctorId: z.string(),
-    date: z.string(), // não use z.string().date() porque não existe, use só string e valide no código
-  }),
-  async (input) => {
+const getAvailableTimesSchema = z.object({
+  doctorId: z.string(),
+  date: z.string(), // validação extra pode ser feita no código
+});
+
+export const getAvailableTimes = actionClient
+  .inputSchema(getAvailableTimesSchema)
+  .action(async ({ parsedInput: input }) => {
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -85,5 +88,4 @@ export const getAvailableTimes = actionClient(
         label: time.substring(0, 5),
       };
     });
-  }
-);
+  });

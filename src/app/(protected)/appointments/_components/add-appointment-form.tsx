@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import dayjs from "dayjs";
 import { CalendarIcon } from "lucide-react";
-import { useAction } from "next-safe-action/hook";
+import { useAction } from "next-safe-action/hooks";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";

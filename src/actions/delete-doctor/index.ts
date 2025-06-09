@@ -1,3 +1,4 @@
+// src/actions/delete-doctor.ts
 "use server";
 
 import { eq } from "drizzle-orm";
@@ -10,11 +11,13 @@ import { doctorsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
-export const deleteDoctor = actionClient(
-  z.object({
-    id: z.string().uuid(),
-  }),
-  async (input) => {
+const deleteDoctorSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export const deleteDoctor = actionClient
+  .inputSchema(deleteDoctorSchema)
+  .action(async ({ parsedInput: input }) => {
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -34,5 +37,4 @@ export const deleteDoctor = actionClient(
     await db.delete(doctorsTable).where(eq(doctorsTable.id, input.id));
 
     revalidatePath("/doctors");
-  }
-);
+  });

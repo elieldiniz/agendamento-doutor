@@ -12,9 +12,9 @@ import { actionClient } from "@/lib/next-safe-action";
 import { getAvailableTimes } from "../get-available-times";
 import { addAppointmentSchema } from "./shema";
 
-export const addAppointment = actionClient(
-  addAppointmentSchema,
-  async (input) => {
+export const addAppointment = actionClient
+  .inputSchema(addAppointmentSchema)
+  .action(async ({ parsedInput: input }) => {
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -69,5 +69,4 @@ export const addAppointment = actionClient(
     });
 
     revalidatePath("/appointments");
-  }
-);
+  });

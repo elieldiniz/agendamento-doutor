@@ -10,11 +10,13 @@ import { appointmentsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
-export const deleteAppointment = actionClient(
-  z.object({
-    id: z.string().uuid(),
-  }),
-  async (input) => {
+const deleteAppointmentSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export const deleteAppointment = actionClient
+  .inputSchema(deleteAppointmentSchema)
+  .action(async ({ parsedInput: input }) => {
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -32,5 +34,4 @@ export const deleteAppointment = actionClient(
     }
     await db.delete(appointmentsTable).where(eq(appointmentsTable.id, input.id));
     revalidatePath("/appointments");
-  }
-);
+  });
